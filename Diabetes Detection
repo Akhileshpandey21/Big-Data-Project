@@ -1,0 +1,86 @@
+from pyspark.sql import SparkSession
+import pandas as pd
+from pyspark.ml.feature import VectorAssembler 
+from pyspark.ml.evaluation import MulticlassClassificationEvaluator
+     
+
+spark=SparkSession.builder.getOrCreate()
+     
+
+diabetes = pd.read_csv('https://github.com/YBIFoundation/Dataset/raw/main/Diabetes.csv')
+diabetes = spark.createDataFrame(diabetes)
+     
+
+diabetes.show()
+
+diabetes.printSchema()
+
+
+
+featureassembler= VectorAssembler(inputCols=['pregnancies',
+ 'glucose',
+ 'diastolic',
+ 'triceps',
+ 'insulin',
+ 'bmi',
+ 'dpf',
+ 'age'], outputCol='Features')
+     
+
+output = featureassembler.transform(diabetes)
+     
+
+output.show()
+
+
+output.select('Features').show()
+     
+
+modeldata=output.select('Features','diabetes')
+     
+
+modeldata.show()
+     
+
+
+# split data
+train_data,test_data=modeldata.randomSplit([0.8,0.2])
+     
+
+train_data.show()
+     
+
+
+# logistic regression model
+from pyspark.ml.classification import LogisticRegression
+     
+
+logit = LogisticRegression(featuresCol='Features', labelCol='diabetes')
+     
+
+logit=logit.fit(train_data)
+     
+
+# prediction
+y_pred = logit.transform(test_data)
+     
+
+y_pred.show()
+
+# confusion matrix
+y_pred.groupBy('diabetes', 'prediction').count().show()
+     
+
+
+
+evaluator = MulticlassClassificationEvaluator(
+    labelCol='diabetes', predictionCol='prediction', 
+    metricName='weightedPrecision')
+     
+
+evaluator.evaluate(y_pred)
+     
+
+# close connection to spark
+spark.stop()
+     
