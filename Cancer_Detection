@@ -1,0 +1,77 @@
+from pyspark.sql import SparkSession
+import pandas as pd
+import numpy as np
+from sklearn.datasets import load_breast_cancer
+from pyspark.ml.feature import VectorAssembler 
+from pyspark.ml.classification import DecisionTreeClassifier
+from sklearn.metrics import confusion_matrix
+from pyspark.ml.evaluation import MulticlassClassificationEvaluator
+ 
+
+spark=SparkSession.builder.getOrCreate()
+
+cancer = load_breast_cancer(as_frame=True)
+cancer = cancer.frame
+cancer = spark.createDataFrame(cancer)
+featureassembler= VectorAssembler(inputCols=['mean radius',
+ 'mean texture',
+ 'mean perimeter',
+ 'mean area',
+ 'mean smoothness',
+ 'mean compactness',
+ 'mean concavity',
+ 'mean concave points',
+ 'mean symmetry',
+ 'mean fractal dimension',
+ 'radius error',
+ 'texture error',
+ 'perimeter error',
+ 'area error',
+ 'smoothness error',
+ 'compactness error',
+ 'concavity error',
+ 'concave points error',
+ 'symmetry error',
+ 'fractal dimension error',
+ 'worst radius',
+ 'worst texture',
+ 'worst perimeter',
+ 'worst area',
+ 'worst smoothness',
+ 'worst compactness',
+ 'worst concavity',
+ 'worst concave points',
+ 'worst symmetry',
+ 'worst fractal dimension',], outputCol='Features')
+     
+
+
+     
+
+output = featureassembler.transform(cancer)
+modeldata=output.select('Features','target')
+train_data,test_data=modeldata.randomSplit([0.8,0.2])
+dt = DecisionTreeClassifier(featuresCol='Features', labelCol='target')
+     
+
+dt = dt.fit(train_data)
+     
+
+# prediction
+y_pred = dt.transform(test_data)
+     
+
+y_pred.show()
+y_pred.groupBy('target', 'prediction').count().show()
+
+
+pred=y_pred.select("prediction").collect()
+orig=y_pred.select("target").collect()
+print(confusion_matrix(orig, pred))
+
+evaluator = MulticlassClassificationEvaluator(
+    labelCol='target', predictionCol='prediction')
+     
+
+accuracy = evaluator.evaluate(y_pred)
+spark.stop()
